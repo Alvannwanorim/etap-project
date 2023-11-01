@@ -10,6 +10,7 @@ import {
   Index,
   OneToMany,
 } from 'typeorm';
+import { TransactionHistory } from 'src/transaction-history/entity/transaction-history.entity';
 
 @Entity('users')
 export default class User implements UserInterface {
@@ -40,6 +41,12 @@ export default class User implements UserInterface {
 
   @OneToMany(() => Wallet, (wallet) => wallet.user)
   wallets: Wallet[];
+
+  @OneToMany(
+    () => TransactionHistory,
+    (transaction_histories) => transaction_histories.user,
+  )
+  transaction_histories: TransactionHistory[];
 
   @Index('user_created_at_index')
   @CreateDateColumn()

@@ -8,6 +8,8 @@ import User from './user/entity/user.entity';
 import { ConfigModule } from '@nestjs/config';
 import { WalletModule } from './wallet/wallet.module';
 import { Wallet } from './wallet/entity/wallet.entity';
+import { TransactionHistoryModule } from './transaction-history/transaction-history.module';
+import { TransactionHistory } from './transaction-history/entity/transaction-history.entity';
 
 @Module({
   imports: [
@@ -19,12 +21,13 @@ import { Wallet } from './wallet/entity/wallet.entity';
       username: 'postgres',
       password: 'alvan2327',
       database: 'e-wallet',
-      entities: [User, Wallet],
+      entities: [User, Wallet, TransactionHistory],
       synchronize: true,
     }),
     AuthModule,
     UserModule,
     WalletModule,
+    TransactionHistoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

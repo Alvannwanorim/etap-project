@@ -9,10 +9,14 @@ import {
 } from 'typeorm';
 import { WalletInterface } from '../interface/wallet.interface';
 import User from 'src/user/entity/user.entity';
+import { CURRENCY } from '../enums/wallet.enum';
 @Entity('wallets')
 export class Wallet implements WalletInterface {
   @PrimaryColumn()
   wallet_id: string;
+
+  @PrimaryColumn({ enum: CURRENCY })
+  currency: CURRENCY;
 
   @Column({ default: '0' })
   balance: number;

@@ -13,6 +13,7 @@ export class WalletRepository extends Repository<Wallet> {
       .innerJoin('wallets.user', 'users')
       .select([
         'wallets.wallet_id',
+        'wallets.currency',
         'wallets.balance',
         'users.first_name',
         'users.last_name',
@@ -21,5 +22,18 @@ export class WalletRepository extends Repository<Wallet> {
       .getMany();
 
     return wallets;
+  }
+
+  async transferFund(
+    sender: Wallet,
+    receiver: Wallet,
+    amount: number,
+  ): Promise<boolean> {
+    return this.manager.transaction(async (transactionEntityManager) => {
+      sender.balance -= amount;
+      receiver.balance += amount;
+      await transactionEntityManager.save(Wallet, [sender, receiver]);
+      return true;
+    });
   }
 }
