@@ -7,6 +7,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import User from './user/entity/user.entity';
 import { ConfigModule } from '@nestjs/config';
 import { WalletModule } from './wallet/wallet.module';
+import { Wallet } from './wallet/entity/wallet.entity';
 
 @Module({
   imports: [
@@ -18,7 +19,7 @@ import { WalletModule } from './wallet/wallet.module';
       username: 'postgres',
       password: 'alvan2327',
       database: 'e-wallet',
-      entities: [User],
+      entities: [User, Wallet],
       synchronize: true,
     }),
     AuthModule,
