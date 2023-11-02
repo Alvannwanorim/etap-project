@@ -10,6 +10,7 @@ import {
 import { TransactionHistoryInterface } from '../interface/transaction-history.interface';
 import User from 'src/user/entity/user.entity';
 import { TRANSACTION_TYPE } from '../enums/transaction_type.enum';
+import { CURRENCY } from 'src/wallet/enums/wallet.enum';
 
 @Entity('transaction_history')
 export class TransactionHistory implements TransactionHistoryInterface {
@@ -31,6 +32,9 @@ export class TransactionHistory implements TransactionHistoryInterface {
 
   @Column({ default: '0' })
   status: number;
+
+  @Column({ enum: CURRENCY })
+  currency: CURRENCY;
 
   @Index('transaction_history_user_index')
   @ManyToOne(() => User, (user) => user.transaction_histories)

@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Wallet } from './entity/wallet.entity';
 import User from 'src/user/entity/user.entity';
 
@@ -8,6 +12,9 @@ import { TransactionHistoryService } from 'src/transaction-history/transaction-h
 import { TRANSACTION_TYPE } from 'src/transaction-history/enums/transaction_type.enum';
 import { CURRENCY } from './enums/wallet.enum';
 import { WalletDto } from './dto/wallet.dto';
+import { TransactionHistory } from 'src/transaction-history/entity/transaction-history.entity';
+import { FundWalletDto } from './dto/fund_wallet.dto';
+import axios from 'axios';
 
 @Injectable()
 export class WalletService {
@@ -70,7 +77,7 @@ export class WalletService {
   async transferFundToWallet(
     walletTransferDto: WalletTransferDto,
     user: User,
-  ): Promise<string> {
+  ): Promise<object> {
     const [isTransferred, sender_wallet, receiver_wallet, status] =
       await this.walletRepository.transferFund(walletTransferDto, user);
 
@@ -83,8 +90,100 @@ export class WalletService {
       receiver_wallet_id: receiver_wallet.wallet_id,
       transaction_type: TRANSACTION_TYPE.TRANSFER,
       user: sender_wallet.user,
+      currency: walletTransferDto.currency,
       status,
     });
-    return 'transfer successful';
+    return {
+      message: 'transfer successful',
+      status: true,
+      amount: walletTransferDto.amount,
+      sender: walletTransferDto.sender_id,
+      receiver: walletTransferDto.receiver_id,
+    };
+  }
+
+  /**
+   * @description retrieves all pending transactions
+   * @returns TransactionHistory
+   */
+  async getPendingTransaction(): Promise<TransactionHistory[]> {
+    return await this.transactionHistoryService.getPendingTransaction();
+  }
+
+  /**
+   * @description approves the pending transaction
+   * @throws Error is the transaction has been approved
+   * @param transaction_id: string
+   * @returns: Object
+   */
+  async approvePendingTransaction(transaction_id: number) {
+    const transaction =
+      await this.transactionHistoryService.getAndApproveTransactionById(
+        transaction_id,
+      );
+
+    if (!transaction) throw new NotFoundException('Transaction not found');
+
+    const wallet = await this.walletRepository.updateWalletBalance(
+      transaction.receiver_wallet_id,
+      transaction.amount,
+      transaction.currency,
+    );
+    return wallet;
+  }
+
+  /**
+   * @description validate transfer details and adds fun to wallet book balance.
+   * @param fundWalletDto
+   * @param user
+   * @returns Wallet
+   */
+  async fundWallet(fundWalletDto: FundWalletDto, user: User) {
+    const wallet = await this.getWalletById(
+      fundWalletDto.wallet_id,
+      fundWalletDto.currency,
+    );
+    if (!wallet) throw new BadRequestException('wallet not found');
+    const transactionDetails = await this.getUserTransactionDetailsById(
+      fundWalletDto.transaction_id,
+    );
+    if (!transactionDetails)
+      throw new BadRequestException('Error funding wallet');
+
+    if (transactionDetails && transactionDetails.status === true) {
+      wallet.book_balance += fundWalletDto.amount;
+      await this.walletRepository.save(wallet);
+
+      await this.transactionHistoryService.createTransactionHistory({
+        amount: fundWalletDto.amount,
+        transaction_type: TRANSACTION_TYPE.FUNDING,
+        receiver_wallet_id: fundWalletDto.wallet_id,
+        sender_wallet_id: transactionDetails.data.id,
+        status: 0,
+        currency: fundWalletDto.currency,
+        user,
+      });
+      return {
+        message: 'transfer successful',
+        status: true,
+        amount: fundWalletDto.amount,
+        receiver: fundWalletDto.wallet_id,
+      };
+    }
+    throw new BadRequestException('Error funding wallet');
+  }
+
+  async getUserTransactionDetailsById(transaction_id: string) {
+    const url = `${process.env.PAYSTACK_PAYMENT_API}/transaction/${transaction_id}`;
+    try {
+      const { data } = await axios.get(url, {
+        headers: {
+          Authorization: `Bearer ${process.env.PAYSTACK_API_SECRET_KEY}`,
+        },
+      });
+      return data;
+    } catch (err) {
+      return null;
+    }
   }
 }

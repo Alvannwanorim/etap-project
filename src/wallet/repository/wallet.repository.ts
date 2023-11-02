@@ -86,4 +86,19 @@ export class WalletRepository extends Repository<Wallet> {
       return [true, sender_wallet, receiver_wallet, status];
     });
   }
+
+  async updateWalletBalance(
+    receiver_wallet_id: string,
+    amount: number,
+    currency: CURRENCY,
+  ) {
+    const wallet = await this.findWalletById(receiver_wallet_id, currency);
+    if (!wallet) {
+      throw new NotFoundException('receiver wallet not found');
+    }
+
+    wallet.balance += amount;
+    await this.save(wallet);
+    return wallet;
+  }
 }
