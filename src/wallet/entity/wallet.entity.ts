@@ -18,6 +18,9 @@ export class Wallet implements WalletInterface {
   @PrimaryColumn({ enum: CURRENCY })
   currency: CURRENCY;
 
+  @Column()
+  name: string;
+
   @Column({ default: '0' })
   balance: number;
 

@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { Wallet } from './entity/wallet.entity';
 import User from 'src/user/entity/user.entity';
 
@@ -11,6 +7,7 @@ import { WalletTransferDto } from './dto/wallet_transfer.dto';
 import { TransactionHistoryService } from 'src/transaction-history/transaction-history.service';
 import { TRANSACTION_TYPE } from 'src/transaction-history/enums/transaction_type.enum';
 import { CURRENCY } from './enums/wallet.enum';
+import { WalletDto } from './dto/wallet.dto';
 
 @Injectable()
 export class WalletService {
@@ -26,9 +23,7 @@ export class WalletService {
    * @returns `WALLET` | null
    */
   async getWalletById(wallet_id: string, currency: CURRENCY) {
-    return await this.walletRepository.findOne({
-      where: { wallet_id, currency },
-    });
+    return await this.walletRepository.findWalletById(wallet_id, currency);
   }
 
   /**
@@ -36,14 +31,22 @@ export class WalletService {
    * @param user: User
    * @returns Wallet
    */
-  public async createWallet(user: User, currency: CURRENCY): Promise<Wallet> {
+  public async createWallet(user: User, walletDto: WalletDto): Promise<Wallet> {
     const wallet_id = user.username.slice(-10);
-    const existingWallet = await this.getWalletById(wallet_id, currency);
+    const existingWallet = await this.getWalletById(
+      wallet_id,
+      walletDto.currency,
+    );
     if (existingWallet) {
       return existingWallet;
     }
 
-    const wallet = this.walletRepository.create({ wallet_id, user, currency });
+    const wallet = this.walletRepository.create({
+      wallet_id,
+      user,
+      currency: walletDto.currency,
+      name: walletDto.name,
+    });
     const newWallet = this.walletRepository.save(wallet);
     return newWallet;
   }
@@ -68,31 +71,8 @@ export class WalletService {
     walletTransferDto: WalletTransferDto,
     user: User,
   ): Promise<string> {
-    const sender_wallet = await this.getWalletById(
-      walletTransferDto.sender_id,
-      walletTransferDto.currency,
-    );
-    const receiver_wallet = await this.getWalletById(
-      walletTransferDto.receiver_id,
-      walletTransferDto.currency,
-    );
-    if (!sender_wallet || !receiver_wallet) {
-      throw new NotFoundException('Sender or receiver wallet not found');
-    }
-
-    if (sender_wallet.balance < walletTransferDto.amount) {
-      throw new Error('Insufficient wallet balance ');
-    }
-
-    if (sender_wallet.user !== user) {
-      throw new BadRequestException('Action not allowed');
-    }
-
-    const isTransferred = await this.walletRepository.transferFund(
-      sender_wallet,
-      receiver_wallet,
-      walletTransferDto.amount,
-    );
+    const [isTransferred, sender_wallet, receiver_wallet, status] =
+      await this.walletRepository.transferFund(walletTransferDto, user);
 
     if (!isTransferred) {
       throw new BadRequestException('Transfer failed');
@@ -103,6 +83,7 @@ export class WalletService {
       receiver_wallet_id: receiver_wallet.wallet_id,
       transaction_type: TRANSACTION_TYPE.TRANSFER,
       user: sender_wallet.user,
+      status,
     });
     return 'transfer successful';
   }

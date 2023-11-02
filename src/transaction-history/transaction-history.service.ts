@@ -12,7 +12,7 @@ export class TransactionHistoryService {
     const history = this.transactionHistoryRepository.create(
       transactionHistoryDto,
     );
-    const newHistory = await this.transactionHistoryRepository.save(history);
-    console.log(newHistory);
+    await this.transactionHistoryRepository.save(history);
+    // console.log(newHistory);
   }
 }
